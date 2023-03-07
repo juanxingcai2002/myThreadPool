@@ -22,8 +22,11 @@ ThreadPool::ThreadPool()
 // Ïß³Ì³ØÎö¹¹ £º±ØĞëĞ´³ö£¬¼´Ê¹Ê²Ã´Ò²Ã»¸É£¨ÒòÎª¹¹Ôì¹ı³ÌÖĞËùÓĞµÄ±äÁ¿¶¼ÊÇÔÚÕ»ÉÏ´´½¨ÓÉ±àÒëÆ÷¹ÜÀíÊÍ·Å£©
 ThreadPool::~ThreadPool() {
 	isPoolRunning_ = false;
-	notEmpty_.notify_all();//½«µÈ´ı×´Ì¬µÄµÄÏß³ÌÓÉµÈ´ıÌ¬ --- ¡· ×èÈûÌ¬£¨×¼±¸»ñÈ¡Ëø£©
+
+
 	// µÈ´ıÏß³Ì³ØÀïÃæËùÓĞµÄÏß³Ì·µ»Ø£¬Ïß³ÌÓĞÁ½ÖÖ×´Ì¬£¬×èÈû»òÕßÕıÔÚÖ´ĞĞÈÎÎñÖĞ
+
+	notEmpty_.notify_all();//½«µÈ´ı×´Ì¬µÄµÄÏß³ÌÓÉµÈ´ıÌ¬ --- ¡· ×èÈûÌ¬£¨×¼±¸»ñÈ¡Ëø£©
 	std::unique_lock<std::mutex> lock(taskQueMtx_);
 	exitCond_.wait(lock, [&]()->bool {return threads_.size() == 0; }); //º¯Êı¶ÔÏó·µ»ØfalsµÄÊ±ºò¾Í×èÈûÔÚÕâ
 };
@@ -105,7 +108,7 @@ Result ThreadPool::submitTask(std::shared_ptr<Task> sp)
 	return Result(sp);
 	/*return sp->getResult();*/
 }
-// ¿ªÆôÏß³Ì³Ø
+// ¿ªÆôÏß³Ì³Ø																	// Ïß³ÌµÄÄ¬ÈÏµÄ³õÊ¼ÊıÁ¿ÊÇ¼ÆËã»úµÄºËĞÄÊı
 void ThreadPool::start(int initThreadSize) //ÔÚÆô¶¯µÄ¹ı³ÌÖĞÄ¬ÈÏÉèÖÃÒ»¸öÏß³Ì³ØÖĞÏß³ÌµÄÊıÁ¿£¬¾Í¿ÉÒÔºÏ²¢ÉèÖÃ³õÊ¼Ïß³ÌµÄÊıÁ¿µÄº¯Êı
 {
 	// ÉèÖÃÏß³Ì³ØµÄÔËĞĞ×´Ì¬¡£
@@ -138,7 +141,8 @@ void ThreadPool::start(int initThreadSize) //ÔÚÆô¶¯µÄ¹ı³ÌÖĞÄ¬ÈÏÉèÖÃÒ»¸öÏß³Ì³ØÖĞÏ
 void ThreadPool::threadFunc(int threadid)
 {
 	// isPoolRunning ÎªtrueµÄÊ±ºò£¬²Å±íÊ¾Ïß³Ì³ØÕı³£ÔËĞĞ¡£
-	while (isPoolRunning_)//Ïß³Ì³ØÖĞµÄÏß³ÌÓ¦¸ÃÊÇÒ»Ö±Ö´ĞĞ×ÅÕâ¸ö¶¯×÷£¨´ÓÈÎÎñ¶ÓÁĞÖĞÈ¡ÈÎÎñÈ»ºóÖ´ĞĞ£©£¬Òò´ËÓ¦¸Ã·ÅÔÚËÀÑ­»·ÖĞ
+	for(;;)//Ïß³Ì³ØÖĞµÄÏß³ÌÓ¦¸ÃÊÇÒ»Ö±Ö´ĞĞ×ÅÕâ¸ö¶¯×÷£¨´ÓÈÎÎñ¶ÓÁĞÖĞÈ¡ÈÎÎñÈ»ºóÖ´ĞĞ£©£¬Òò´ËÓ¦¸Ã·ÅÔÚËÀÑ­»·ÖĞ£¬ÇÒ·ÅÔÚËÀÑ­»·ÖĞ£¬¼´¿É±£Ö¤¼ÆËãpool¶ÔÏó±»Îö¹¹ÁË£¬µ«ÕıÔÚÖ´ĞĞÈÎÎñµÄÏß³Ì»áÖ´ĞĞÍêËùÓĞµÄÈÎÎñ£¬Ö»ÓĞtaskQue.size() ==0 
+		  //ËùÓĞµÄÏß³Ì¶¼Ö´ĞĞÍêÁË£¬²Å»áÈ¥ÅĞ¶ÏÏß³Ì³ØµÄ×´Ì¬isPoolRunning.
 	{
 		
 
@@ -155,8 +159,18 @@ void ThreadPool::threadFunc(int threadid)
 			
 			
 				// cachedÄ£Ê½ÏÂÊÇĞèÒªÏŞÖÆÃ¿Ò»ÃëÖĞ·µ»ØÒ»´ÎÀ´ÅĞ¶ÏËüµÄ¿ÕÏĞÊ±¼ä£¬ÈçºÎÇø·Ö³¬Ê±·µ»ØºÍÓĞÈÎÎñ´ıÖ´ĞĞ·µ»Ø¡£
+			// Ëø + Ë«ÖØ ÅĞ¶Ï £ºÒòÎª²»ÖªµÀÔÚÏß³Ì³ØÎö¹¹µÄÊ±ºò£¬ÊÇÏß³Ì³ØµÄÎö¹¹º¯ÊıÏÈ»ñµÃËø£¨»á¸Ä±äisPoolRunningµÄÖµ£©»¹ÊÇÏß³Ìº¯ÊıÏÈ»ñµÃÕâ°ÑËø
 			while (taskQue_.size() == 0)// ËµÃ÷Ã»ÓĞÈÎÎñ£¬¹¤×÷Ïß³Ì¾ÍÓ¦¸Ã×èÈûÔÚÕâ¡£
 			{
+				
+				
+				if (isPoolRunning_ == false)
+				{
+					threads_.erase(threadid);
+					exitCond_.notify_all(); // »½ĞÑ×èÈûÔÚexitCondÉÏµÄÏß³Ì£¬µ«²»Ò»¶¨ÄÜ½â³ı×èÈû£¬¾ßÌå»¹Òª¿´µÚ¶ş¸ö²ÎÊıµÄÌõ¼şÊÇ·ñÄÜµÃµ½Âú×ã¡£
+					return;//Ïß³Ìº¯Êı½áÊø£¬Ïß³Ì½áÊø
+				}
+				
 				if (PoolMode_ == PoolMode::MODE_CACHED)
 				{
 					if (std::cv_status::timeout == notEmpty_.wait_for(lock, std::chrono::seconds(1)))// ×èÈû1s¾Í·µ»Ø,ÇÒ·µ»ØÀàĞÍÓĞÁ½ÖÖ£¬³¬Ê±·µ»ØºÍ·Ç³¬Ê±·µ»Ø£¨ËµÃ÷ÓĞÈÎÎñÀ´ÁË£¬¸øÌõ¼ş±äÁ¿µÄÖµ++ÁË£©
@@ -182,19 +196,24 @@ void ThreadPool::threadFunc(int threadid)
 				else
 				{
 					// fixedÄ£Ê½ÏÂÊÇÈç¹ûÏß³Ìº¯Êı²»ÄÜÖ´ĞĞ¾ÍÒ»Ö±µÈ´ıÌõ¼ş±äÁ¿Ö±µ½¿ÉÒÔÖ´ĞĞ¡£
-					// µÈ´ınotEmpty£»
-					notEmpty_.wait(lock);
+					// µÈ´ınotEmpty£»ÒòÎªÈÎÎñ¶ÓÁĞÏÖÔÚÎª¿ÕÁË
+					notEmpty_.wait(lock); 
 				}
 
 				// Ïß³Ì³ØÒª½áÊø£¬»ØÊÕÏß³Ì×ÊÔ´
-				if (!isPoolRunning_)
-				{
-					threads_.erase(threadid);// É¾³ıÏß³Ì¶ÔÏó
-					exitCond_.notify_all();//Ïß³Ì±»É¾³ıÁË£¬»½ĞÑÒ»Ğ©µÈ´ıÔÙÕâ¸öÌõ¼ş±äÁ¿ÉÏµÄËùÓĞÏß³Ì¡£
-					return;
-				}
+				//if (!isPoolRunning_)
+				//{
+				//	threads_.erase(threadid);// É¾³ıÏß³Ì¶ÔÏó
+				//	exitCond_.notify_all();//Ïß³Ì±»É¾³ıÁË£¬»½ĞÑÒ»Ğ©µÈ´ıÔÙÕâ¸öÌõ¼ş±äÁ¿ÉÏµÄËùÓĞÏß³Ì¡£
+				//	return;
+				//}
 				
-			}
+			}	
+
+			//if (!isPoolRunning_) //Ïß³Ì³Ø±»Îö¹¹ÁË--Ö±½ÓÍË³öÍâ²ãµÄwhile --Ö´ĞĞ×îºóµÄÏß³ÌÉ¾³ıº¯Êı¡£
+			//{
+			//	break; 
+			//}
 			
  
 			// ËµÃ÷Ïß³ÌÆô¶¯¡£ÄÇÃ´¿ÕÏĞµÄÏß³Ì¾ÍÉÙÁË
@@ -228,8 +247,8 @@ void ThreadPool::threadFunc(int threadid)
 
 	// Èç¹ûÏß³Ì³Ø»ØÊÕµÄÊ±ºòÏß³ÌÕıÔÚÖ´ĞĞÈÎÎñ¼´ÔÙwhile£¨£©Ñ­»·ÖĞËü½øÈ¥µÄÊ±ºòisPoolRunning == true£¬Ëü»¹ÔÚÖ´ĞĞµÄÊ±ºò£¬isPoolRunning == falseÁË
 	//ÔÙ´Îwhile Ñ­»·½øÈë·¢ÏÖ¿ÕÁË£¬Ëü¾Í»áÍË³öwhile Ñ­»· --¡· ÄÇÃ´Ò²Ó¦¸Ã½«Õâ¸öÏß³ÌµÄ´ÓÏß³ÌÁĞ±íÖĞÉ¾³ıÄÇÃ´²Å½Ğ×öÕæµÄÏß³Ì»ØÊÕ
-	threads_.erase(threadid);
-	exitCond_.notify_all();
+	/*threads_.erase(threadid);
+	exitCond_.notify_all();*/
 }
 
 int ::Thread::generateId_ = 0;

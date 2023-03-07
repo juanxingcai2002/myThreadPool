@@ -194,7 +194,7 @@ public:
 	//给线程池提交任务
 	Result submitTask(std::shared_ptr<Task> sp);
 	// 开启线程池
-	void start(int initThreadSize = 4);
+	void start(int initThreadSize = std::thread::hardware_concurrency());
 
 
 	// 人为不希望拷贝和赋值,线程池对象的东西太多了，赋值起来等不安全消耗也大。
